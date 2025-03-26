@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -137,27 +136,72 @@ if portfolio_summary:
     final_cum_return = period_returns_df['cum_return'].iloc[-1]
     st.write(f"**ผลตอบแทนสะสมของพอร์ตทั้งหมด:** {final_cum_return:.2%}")
     
+    # # --- เปรียบเทียบกับ Dow30 ---
+    # st.subheader("Comparison: Portfolio vs Dow30")
+    # # คำนวณผลตอบแทนของ Dow30 ในแต่ละ rebalancing period
+    # dji_df.sort_values('date', inplace=True)
+    
+    # dji_period_returns = []
+    # for i, entry_date in enumerate(rebal_dates):
+    #     if i + 1 < len(rebal_dates):
+    #         exit_date = rebal_dates[i+1]
+    #     else:
+    #         exit_date = dji_df['date'].max()
+    #     period_dji = dji_df[(dji_df['date'] >= entry_date) & (dji_df['date'] < exit_date)]
+    #     if period_dji.empty:
+    #         dji_return = 0.0
+    #     else:
+    #         dji_return = (1 + period_dji['return']).prod() - 1
+    #     dji_period_returns.append({'entry_date': entry_date, 'exit_date': exit_date, 'dji_period_return': dji_return})
+    
+    # dji_returns_df = pd.DataFrame(dji_period_returns).sort_values('entry_date')
+    # dji_returns_df['dji_cum_return'] = (1 + dji_returns_df['dji_period_return']).cumprod()
+    
     # --- เปรียบเทียบกับ Dow30 ---
     st.subheader("Comparison: Portfolio vs Dow30")
     # คำนวณผลตอบแทนของ Dow30 ในแต่ละ rebalancing period
     dji_df.sort_values('date', inplace=True)
-    
+
     dji_period_returns = []
     for i, entry_date in enumerate(rebal_dates):
         if i + 1 < len(rebal_dates):
             exit_date = rebal_dates[i+1]
         else:
             exit_date = dji_df['date'].max()
+            
         period_dji = dji_df[(dji_df['date'] >= entry_date) & (dji_df['date'] < exit_date)]
         if period_dji.empty:
             dji_return = 0.0
+            daily_returns_log = "No data in period"
         else:
-            dji_return = (1 + period_dji['return']).prod() - 1
-        dji_period_returns.append({'entry_date': entry_date, 'exit_date': exit_date, 'dji_period_return': dji_return})
-    
+            # ดึงผลตอบแทนรายวันใน period นี้
+            daily_returns = period_dji['return']
+            # สร้าง log ของผลตอบแทนรายวันในรูปแบบ list
+            daily_returns_log = daily_returns.tolist()
+            # คำนวณ period return: cumulative return = prod(1+daily_return) - 1
+            dji_return = (1 + daily_returns).prod() - 1
+        
+        dji_period_returns.append({
+            'entry_date': entry_date, 
+            'exit_date': exit_date, 
+            'dji_period_return': dji_return,
+            'daily_returns_log': daily_returns_log  # เพิ่ม log รายละเอียดผลตอบแทนรายวัน
+        })
+        
+        # แสดง log รายละเอียดของ period นี้
+        st.markdown(f"**Period {entry_date.date()} to {exit_date.date()}:**")
+        st.write("Daily returns:", daily_returns_log)
+        st.write("Computed period return:", f"{dji_return:.2%}")
+
+    # สร้าง DataFrame สำหรับผลตอบแทนของ Dow30
     dji_returns_df = pd.DataFrame(dji_period_returns).sort_values('entry_date')
     dji_returns_df['dji_cum_return'] = (1 + dji_returns_df['dji_period_return']).cumprod()
-    
+
+    # แสดงตารางที่มีทั้ง period return และ cumulative return ของ Dow30
+    st.markdown("**Dow30 Period Returns and Cumulative Returns**")
+    st.dataframe(dji_returns_df[['entry_date', 'exit_date', 'dji_period_return', 'dji_cum_return']])
+
+
     # Merge portfolio and Dow30 performance for comparison
     performance_df = period_returns_df.merge(dji_returns_df[['entry_date', 'dji_cum_return']], on='entry_date', how='left')
     st.dataframe(performance_df)
